@@ -1,11 +1,10 @@
 # `shutil`
 
 - This is a personal utility CLI that aims to simplify / automate the following:
-    - `cd` to arbitrary directory
-    - 
+    - `cd` to arbitrary directory 
 - This CLI is intended to use along with other CLI tools such as `fzf`, and with 
 a few lines of script (either Bash or Power Shell) without using features or 
-syntax that are specific to a scripting language.
+syntaxes that are specific to a scripting language.
 
 ## Motivation
 
