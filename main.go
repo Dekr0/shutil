@@ -28,7 +28,7 @@ func main() {
             fmt.Println(err.Error())
             os.Exit(1)
         }
-        fmt.Println(out)
+        os.Stdout.Write(out)
         os.Exit(0)
     }
 }
