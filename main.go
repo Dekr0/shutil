@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 
-	"dekr0.com/shutil/cd"
-	"dekr0.com/shutil/rename"
+	"github.com/Dekr0/shutil/cd"
+	"github.com/Dekr0/shutil/rename"
 )
 
 func main() {
