@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Dekr0/shutil/cd"
+	"github.com/Dekr0/shutil/pkg"
 	"github.com/Dekr0/shutil/rename"
 )
 
@@ -26,13 +27,18 @@ func main() {
         0,
         "Worker of walker",
     )
+
     useReplaceSpace := flag.Bool(
         "replace-space",
         false,
         "Replace white space for an array of files or directories (including " +
         "descendant) with underscore",
     )
-    
+
+	usePkgAdd := flag.String("pkg-add", "", "Package to be added from the profile")
+	usePkgRm := flag.String("pkg-rm", "", "Package to be removed from the profile")
+	usePkgCategory := flag.String("pkg-category", "other", "Package category")
+
     flag.Parse()
 
     logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -65,6 +71,24 @@ func main() {
         }
         os.Exit(0)
     }
+	
+	if len(*usePkgAdd) > 0 {
+		err := pkg.AddPkg(*usePkgAdd, *usePkgCategory)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if len(*usePkgRm) > 0 {
+		err := pkg.RmPkg(*usePkgRm, *usePkgCategory)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
     flag.Usage()
 }
