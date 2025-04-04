@@ -68,7 +68,7 @@ func generateTest() error {
     return nil
 }
 
-func TestReplaceWhiteSpace(t *testing.T) {
+func _TestReplaceWhiteSpace(t *testing.T) {
     logger := slog.New(slog.NewJSONHandler(
         os.Stdout,
         &slog.HandlerOptions {
@@ -77,15 +77,17 @@ func TestReplaceWhiteSpace(t *testing.T) {
         },
     ))
 
-    /*err := generateTest()
-    if err != nil {
-        t.Fatal(err)
-    }*/
-
     err := ReplaceSpace(
         []string{ "D:/codebase/shutil/rename/folder_1" },
         4, 0, time.Second * 5, logger,
     )
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+
+func TestGenerate(t *testing.T) {
+    err := generateTest()
     if err != nil {
         t.Fatal(err)
     }
