@@ -106,6 +106,10 @@ func SearchDir(
     }
     bg := context.Background()
 
+	for i := range roots {
+		roots[i] = os.ExpandEnv(roots[i])
+	}
+
     wCtx, wCancel := context.WithCancel(bg)
     defer wCancel()
 
