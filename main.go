@@ -11,6 +11,7 @@ import (
 	"github.com/Dekr0/shutil/kitty"
 	"github.com/Dekr0/shutil/pkg"
 	"github.com/Dekr0/shutil/rename"
+	"github.com/Dekr0/shutil/wezterm"
 )
 
 func main() {
@@ -42,12 +43,18 @@ func main() {
         "descendant) with underscore",
     )
 
-	useKittyFzfTab := flag.Bool(
+	useKittyFzFTab := flag.Bool(
 		"kitty-fzf-tab",
 		false,
 		"Using FzF to search for the tabs in the current active window you want " +
 		"to swap",
 	)
+    useWeztermFzFTab := flag.Bool(
+        "wezterm-fzf-tab",
+        false,
+        "Using FzF to search for the tabs in the current active window you want " +
+        "to swap",
+    )
 
 	usePkgAdd := flag.String("pkg-add", "", "Package to be added from the profile")
 	usePkgRm := flag.String("pkg-rm", "", "Package to be removed from the profile")
@@ -113,7 +120,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *useKittyFzfTab {
+	if *useKittyFzFTab {
 		err := kitty.SwitchCurrentWindowTab()
 		if err != nil {
 			fmt.Println(err.Error())
@@ -121,6 +128,15 @@ func main() {
 		}
 		os.Exit(0)
 	}
+
+    if *useWeztermFzFTab {
+        err := wezterm.SwitchCurrentWindowTab()
+        if err != nil {
+            fmt.Println(err.Error())
+            os.Exit(1)
+        }
+        os.Exit(0)
+    }
 
     flag.Usage()
 }
