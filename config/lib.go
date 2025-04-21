@@ -7,8 +7,19 @@ import (
 	"slices"
 )
 
+type Session struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+type SessionProfile struct {
+	Name       string  `json:"name"`
+	Sessions []Session `json:"sessions"`
+}
+
 type Config struct {
-	BookmarkRoots []string `json:"BookmarkRoots"`
+	BookmarkRoots   []string          `json:"BookmarkRoots"`
+	SessionProfiles []*SessionProfile `json:"SessionProfiles"`
 }
 
 func (c *Config) SaveConfig() error {
@@ -57,6 +68,16 @@ func (c *Config) Sanitize() {
 			return err != nil
 		},
 	)
+	for _, profile := range c.SessionProfiles {
+		profile.Sessions = slices.DeleteFunc(
+			profile.Sessions,
+			func(s Session) bool {
+				expanded := os.ExpandEnv(s.Path)
+				_, err := os.Lstat(expanded)
+				return err != nil
+			},
+		)
+	}
 }
 
 func LoadConfig() (*Config, error) {
@@ -103,6 +124,7 @@ func initConfig(configPath string, home string) (*Config, error) {
 
 	conf := Config{
 		[]string{ home },
+		[]*SessionProfile{},
 	}
 
 	blob, err := json.MarshalIndent(conf, "", "    ")
