@@ -15,10 +15,6 @@ import (
 )
 
 func main() {
-	conf, err := config.LoadConfig()
-	if err != nil {
-		fmt.Printf("Failed to load configuration: %s", err.Error())
-	}
 
     useWalker := flag.Bool(
         "walker",
@@ -26,39 +22,56 @@ func main() {
         "Search for descendant (directory only) based on an array of directories",
     )
     useWalkerDepth := flag.Uint(
-        "walker-depth",
+        "walker_depth",
         1,
         "Depth of searching descendant",
     )
     useWalkerWorker := flag.Uint(
-        "walker-worker",
+        "walker_worker",
         0,
         "Worker of walker",
     )
 
     useReplaceSpace := flag.Bool(
-        "replace-space",
+        "replace_space",
         false,
         "Replace white space for an array of files or directories (including " +
         "descendant) with underscore",
     )
 
 	useKittyFzFTab := flag.Bool(
-		"kitty-fzf-tab",
+		"kitty_fzf_tab",
 		false,
 		"Using FzF to search for the tabs in the current active window you want " +
 		"to swap",
 	)
     useWeztermFzFTab := flag.Bool(
-        "wezterm-fzf-tab",
+        "wezterm_fzf_tab",
         false,
         "Using FzF to search for the tabs in the current active window you want " +
         "to swap",
     )
 
-	usePkgAdd := flag.String("pkg-add", "", "Package to be added from the profile")
-	usePkgRm := flag.String("pkg-rm", "", "Package to be removed from the profile")
-	usePkgCategory := flag.String("pkg-category", "other", "Package category")
+	useKittyStartSession := flag.Bool(
+		"kitty_start_session",
+		false,
+		"Using FzF to search for session profile you want to use in the active windows",
+	)
+	useKittyStoreSession := flag.Bool(
+		"kitty_store_session",
+		false,
+		"Store the current active sessions as a new profile",
+	)
+
+	useHealthCheck := flag.Bool(
+		"health_check",
+		false,
+		"Check necessary applications required to run shutil, and check the correctness of config",
+	)
+
+	usePkgAdd := flag.String("pkg_add", "", "Package to be added from the profile")
+	usePkgRm := flag.String("pkg_rm", "", "Package to be removed from the profile")
+	usePkgCategory := flag.String("pkg_category", "other", "Package category")
 
     flag.Parse()
 
@@ -66,6 +79,16 @@ func main() {
         AddSource: false,
         Level: slog.LevelInfo,
     }))
+
+	if *useHealthCheck{
+		healthCheck()
+		os.Exit(0)
+	}
+
+	conf, err := config.LoadConfig()
+	if err != nil {
+		fmt.Printf("Failed to load configuration: %s", err.Error())
+	}
 
     if *useWalker {
 		roots := flag.Args()
@@ -128,7 +151,6 @@ func main() {
 		}
 		os.Exit(0)
 	}
-
     if *useWeztermFzFTab {
         err := wezterm.SwitchCurrentWindowTab()
         if err != nil {
@@ -137,6 +159,22 @@ func main() {
         }
         os.Exit(0)
     }
+
+	if *useKittyStartSession {
+		if err := kitty.StartSession(conf); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if *useKittyStoreSession {
+		if err := kitty.StoreSession(conf); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
     flag.Usage()
 }
