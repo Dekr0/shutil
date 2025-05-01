@@ -93,7 +93,7 @@ type rFzf struct {
 }
 
 func SearchDir(
-    roots []string, depth uint8, workers uint8, logger *slog.Logger,
+    roots []string, depth uint8, workers uint8,
 ) ([]byte, error) {
     if len(roots) == 0 {
         return nil, nil
@@ -139,7 +139,6 @@ func SearchDir(
         ctx: wCtx,
         cDir: cDir,
         cErr: cErr,
-        logger: logger,
         sem: make(chan empty, workers),
     }
 
@@ -161,7 +160,7 @@ func SearchDir(
         select {
         case gErr := <- cErr:
             if gErr != nil {
-                logger.Error("Received error", "error", gErr)
+                slog.Error("Received error", "error", gErr)
             }
         case r := <- cFzf:
             wCancel()

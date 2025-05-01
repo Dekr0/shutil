@@ -9,13 +9,12 @@ import (
 	"github.com/Dekr0/shutil/cd"
 	"github.com/Dekr0/shutil/config"
 	"github.com/Dekr0/shutil/kitty"
+	"github.com/Dekr0/shutil/mux"
 	"github.com/Dekr0/shutil/pkg"
 	"github.com/Dekr0/shutil/rename"
-	"github.com/Dekr0/shutil/wezterm"
 )
 
 func main() {
-
     useWalker := flag.Bool(
         "walker",
         false,
@@ -39,18 +38,24 @@ func main() {
         "descendant) with underscore",
     )
 
-	useKittyFzFTab := flag.Bool(
-		"kitty_fzf_tab",
+	useKittyActivateTab := flag.Bool(
+		"kitty_activate_tab",
 		false,
 		"Using FzF to search for the tabs in the current active window you want " +
 		"to swap",
 	)
-    useWeztermFzFTab := flag.Bool(
-        "wezterm_fzf_tab",
+    useWeztermActivateTab := flag.Bool(
+        "wezterm_activate_tab",
         false,
         "Using FzF to search for the tabs in the current active window you want " +
         "to swap",
     )
+
+	useWeztermNewTab := flag.Bool(
+		"wezterm_new_tab",
+		false,
+		"Launch a new wt tab using directories in book mark",
+	)
 
 	useKittyStartSession := flag.Bool(
 		"kitty_start_session",
@@ -75,10 +80,15 @@ func main() {
 
     flag.Parse()
 
-    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	f, err := os.OpenFile("shutil.log", os.O_CREATE | os.O_WRONLY, 0666)
+	if err != nil {
+		slog.Error("Failed to create shutil log files", "error", err)
+	}
+    logger := slog.New(slog.NewJSONHandler(f, &slog.HandlerOptions{
         AddSource: false,
         Level: slog.LevelInfo,
     }))
+	slog.SetDefault(logger)
 
 	if *useHealthCheck{
 		healthCheck()
@@ -101,10 +111,10 @@ func main() {
 
         out, err := cd.SearchDir(
             roots,
-            uint8(*useWalkerDepth), uint8(*useWalkerWorker), logger,
+            uint8(*useWalkerDepth), uint8(*useWalkerWorker),
         )
         if err != nil {
-            fmt.Println(err.Error())
+			slog.Error(err.Error())
             os.Exit(1)
         }
         os.Stdout.Write(out)
@@ -118,7 +128,7 @@ func main() {
             logger,
         )
         if err != nil {
-            fmt.Println(err.Error())
+			slog.Error(err.Error())
             os.Exit(1)
         }
         os.Exit(0)
@@ -128,7 +138,7 @@ func main() {
 		/* TODO: store this into .shutil */
 		err := pkg.AddPkg(*usePkgAdd, *usePkgCategory)
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -137,32 +147,45 @@ func main() {
 	if len(*usePkgRm) > 0 {
 		err := pkg.RmPkg(*usePkgRm, *usePkgCategory)
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
 
-	if *useKittyFzFTab {
-		err := kitty.SwitchCurrentWindowTab()
+	if *useKittyActivateTab {
+		err := mux.ActivateTab(&mux.Kitty{})
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
-    if *useWeztermFzFTab {
-        err := wezterm.SwitchCurrentWindowTab()
+    if *useWeztermActivateTab {
+        err := mux.ActivateTab(&mux.Wezterm{})
         if err != nil {
-            fmt.Println(err.Error())
+			slog.Error(err.Error())
             os.Exit(1)
         }
         os.Exit(0)
     }
 
+	if *useWeztermNewTab {
+		err := mux.NewTab(
+			conf.BookmarkRoots,
+			uint8(*useWalkerDepth), uint8(*useWalkerWorker),
+			&mux.Wezterm{},
+		)
+		if err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if *useKittyStartSession {
 		if err := kitty.StartSession(conf); err != nil {
-			fmt.Println(err.Error())
+			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -170,7 +193,7 @@ func main() {
 
 	if *useKittyStoreSession {
 		if err := kitty.StoreSession(conf); err != nil {
-			fmt.Println(err.Error())
+			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
