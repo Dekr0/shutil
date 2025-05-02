@@ -9,7 +9,9 @@ import (
 
 
 func TestSearchDir(t *testing.T)  {
-    out, err := SearchDir([]string{"D:/codebase/hd2_asset_db"}, 3, 8)
+	timeout, cancel := context.WithTimeout(context.Background(), time.Second * 4)
+	defer cancel()
+    out, err := SearchDir(timeout, []string{"D:/codebase/hd2_asset_db"}, 3, 8)
     if err != nil {
         t.Fatalf(err.Error())
     }

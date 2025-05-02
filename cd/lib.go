@@ -2,7 +2,6 @@ package cd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +10,8 @@ import (
 	"path"
 	"sync"
 	"time"
+
+	"github.com/Dekr0/shutil/fzf"
 )
 
 type empty struct{}
@@ -18,9 +19,8 @@ type empty struct{}
 type walker struct {
     depth uint8
     ctx   context.Context
-    cDir  chan string
-    cErr  chan error
-    logger *slog.Logger
+    d     chan string
+    e     chan error
     sem   chan empty
     wg    sync.WaitGroup
 }
@@ -29,28 +29,28 @@ func (w *walker) walk(root string, depth uint8) (error) {
     if depth > w.depth {
         return nil
     }
-    info, lErr := os.Lstat(root)
-    if lErr != nil {
-        return lErr
+    info, err := os.Lstat(root)
+    if err != nil {
+        return err
     }
     if !info.IsDir() {
         return nil
     }
-    f, oErr := os.Open(root)
-    if oErr != nil {
-        return oErr
+    f, err := os.Open(root)
+    if err != nil {
+        return err
     }
     for {
         select {
         case <- w.ctx.Done():
             return w.ctx.Err()
         default:
-            entries, rErr := f.ReadDir(1024)
-            if rErr != nil {
-                if rErr == io.EOF {
+            entries, err := f.ReadDir(1024)
+            if err != nil {
+                if err == io.EOF {
                     return nil
                 }
-                return rErr
+                return err
             }
             for _, entry := range entries {
                 select {
@@ -61,7 +61,7 @@ func (w *walker) walk(root string, depth uint8) (error) {
                         continue
                     }
                     p := path.Join(root, entry.Name())
-                    w.cDir <- p
+                    w.d <- p
                     select {
                         case <- w.ctx.Done():
                             return w.ctx.Err()
@@ -72,13 +72,13 @@ func (w *walker) walk(root string, depth uint8) (error) {
                                     <- w.sem
                                     w.wg.Done()
                                 }()
-                                if wErr := w.walk(p, depth + 1); wErr != nil {
-                                    w.cErr <- wErr
+                                if err := w.walk(p, depth + 1); err != nil {
+                                    w.e <- err
                                 }
                             }()
                         default:
-                            if wErr := w.walk(p, depth + 1); wErr != nil {
-                                w.cErr <- wErr
+                            if err := w.walk(p, depth + 1); err != nil {
+                                w.e <- err
                             }
                     }
                 }
@@ -87,13 +87,8 @@ func (w *walker) walk(root string, depth uint8) (error) {
     }
 }
 
-type rFzf struct {
-    out []byte
-    err error
-}
-
 func SearchDir(
-    roots []string, depth uint8, workers uint8,
+    ctx context.Context, roots []string, depth uint8, workers uint8,
 ) ([]byte, error) {
     if len(roots) == 0 {
         return nil, nil
@@ -104,20 +99,13 @@ func SearchDir(
     if workers == 0 {
         workers = 4
     }
-    bg := context.Background()
 
 	for i := range roots {
 		roots[i] = os.ExpandEnv(roots[i])
 	}
 
-    wCtx, wCancel := context.WithCancel(bg)
-    defer wCancel()
-
-    fzfCtx, fzfCancel := context.WithCancel(bg)
-    defer fzfCancel()
-
-    fzf := exec.CommandContext(fzfCtx, "fzf")
-    pFzf, pErr := fzf.StdinPipe()
+    proc := exec.CommandContext(ctx, "fzf")
+    pipe, pErr := proc.StdinPipe()
     if pErr != nil {
         return nil, pErr
     }
@@ -127,52 +115,52 @@ func SearchDir(
      is ready.
      Buffered channel will block only when the buffer is full.
     */
-    cErr := make(chan error)
-    cDir := make(chan string)
-    cFzf := make(chan *rFzf)
+    e := make(chan error)
+    d := make(chan string)
+	r := make(chan *fzf.FzFSimpleResponse)
     closed := false
 
     var wg sync.WaitGroup
 
     w := walker {
         depth: depth,
-        ctx: wCtx,
-        cDir: cDir,
-        cErr: cErr,
+        ctx: ctx,
+        d: d,
+        e: e,
         sem: make(chan empty, workers),
     }
 
     go func() {
-        o, e := fzf.Output()
-        cFzf <- &rFzf{ o, e }
+        o, e := proc.Output()
+		r <- &fzf.FzFSimpleResponse{
+			Selected: o, 
+			Error: e,
+		}
     }()
 
     for _, root := range roots {
         wg.Add(1)
         go func() {
             defer wg.Done()
-            cErr <- w.walk(root, 0)
+            e <- w.walk(root, 0)
         }()
     }
 
-    deadline := time.After(time.Second * 60)
     for {
         select {
-        case gErr := <- cErr:
-            if gErr != nil {
-                slog.Error("Received error", "error", gErr)
+        case err := <- e:
+            if err != nil {
+                slog.Error("Received error from a walker", "error", err)
             }
-        case r := <- cFzf:
-            wCancel()
-
-            cCtx, cCanel := context.WithCancel(bg)
-            defer cCanel()
+        case r := <- r:
+            ctx, cancel := context.WithTimeout(context.Background(), time.Second * 4)
+			defer cancel()
             go func() {
                 for {
                     select {
-                    case <- cErr:
-                    case <- cDir:
-                    case <- cCtx.Done():
+                    case <- e:
+                    case <- d:
+                    case <- ctx.Done():
                         return
                     }
                 }
@@ -181,21 +169,18 @@ func SearchDir(
             w.wg.Wait()
             wg.Wait()
 
-            return r.out, r.err
-        case p := <- cDir:
+            return r.Selected, r.Error
+        case p := <- d:
             if closed {
                 continue
             }
             p = fmt.Sprintf("%s\n", p)
-            if _, err := pFzf.Write([]byte(p)); err != nil {
+            if _, err := pipe.Write([]byte(p)); err != nil {
                 return nil, err
             }
-        case <- deadline:
-            fzfCancel()
-            wCancel()
-            err := errors.New("Exceed deadline.")
-            cCtx, cCanel := context.WithCancel(bg)
-            defer cCanel()
+        case <- ctx.Done():
+            ctx, cancel := context.WithTimeout(context.Background(), time.Second * 4)
+			defer cancel()
             
             /*
             Semaphore pattern:
@@ -235,16 +220,16 @@ func SearchDir(
             go func() {
                 for {
                     select {
-                    case <- cErr:
-                    case <- cDir:
-                    case <- cCtx.Done():
+                    case <- e:
+                    case <- d:
+                    case <- ctx.Done():
                         return
                     }
                 }
             }()
             w.wg.Wait()
             wg.Wait()
-            return nil, err
+            return nil, ctx.Err()
         }
     }
 }
