@@ -13,8 +13,8 @@ type Session struct {
 }
 
 type SessionProfile struct {
-	Name       string  `json:"name"`
-	Sessions []Session `json:"sessions"`
+	Name        string  `json:"name"`
+	Sessions []*Session `json:"sessions"`
 }
 
 type Config struct {
@@ -71,7 +71,7 @@ func (c *Config) Sanitize() {
 	for _, profile := range c.SessionProfiles {
 		profile.Sessions = slices.DeleteFunc(
 			profile.Sessions,
-			func(s Session) bool {
+			func(s *Session) bool {
 				expanded := os.ExpandEnv(s.Path)
 				_, err := os.Lstat(expanded)
 				return err != nil
