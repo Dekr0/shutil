@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Dekr0/shutil/cd"
+	"github.com/Dekr0/shutil/picker"
 	"github.com/Dekr0/shutil/config"
 	"github.com/Dekr0/shutil/fzf"
 )
@@ -90,7 +90,7 @@ func NewTab(
 	workers uint8,
 	mux Mux,
 ) error {
-	selected, err := cd.SearchDir(ctx, roots, depth, workers)
+	selected, err := picker.SearchDir(ctx, roots, depth, workers)
 	if err != nil {
 		return err
 	}
