@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Dekr0/shutil/cd"
 	"github.com/Dekr0/shutil/config"
-	"github.com/Dekr0/shutil/kitty"
 	"github.com/Dekr0/shutil/mux"
 	"github.com/Dekr0/shutil/pkg"
 	"github.com/Dekr0/shutil/rename"
@@ -38,6 +40,12 @@ func main() {
         "descendant) with underscore",
     )
 
+	useFzFExec := flag.Bool(
+		"exec",
+		false,
+		"Fuzzy find executable from PATH",
+	)
+
 	useKittyActivateTab := flag.Bool(
 		"kitty_activate_tab",
 		false,
@@ -57,13 +65,26 @@ func main() {
 		"Launch a new wt tab using directories in book mark",
 	)
 
-	useKittyStartSession := flag.Bool(
-		"kitty_start_session",
+	useKittyNewSessions := flag.Bool(
+		"kitty_new_sessions",
 		false,
-		"Using FzF to search for session profile you want to use in the active windows",
+		"Using FzF to search for session profile you want to use in the active" +
+		" windows",
 	)
-	useKittyStoreSession := flag.Bool(
-		"kitty_store_session",
+	useWeztermNewSessions := flag.Bool(
+		"wezterm_new_sessions",
+		false,
+		"Using FzF to search for session profile you want to use in the active" +
+		" windows",
+	)
+
+	useKittyCreateSessionProfile := flag.Bool(
+		"kitty_create_session_profile",
+		false,
+		"Store the current active sessions as a new profile",
+	)
+	useWeztermCreateSessionProfile := flag.Bool(
+		"wezterm_create_session_profile",
 		false,
 		"Store the current active sessions as a new profile",
 	)
@@ -80,7 +101,7 @@ func main() {
 
     flag.Parse()
 
-	f, err := os.OpenFile("shutil.log", os.O_CREATE | os.O_WRONLY, 0666)
+	f, err := os.OpenFile("/tmp/shutil.log", os.O_CREATE | os.O_WRONLY, 0666)
 	if err != nil {
 		slog.Error("Failed to create shutil log files", "error", err)
 	}
@@ -90,12 +111,17 @@ func main() {
     }))
 	slog.SetDefault(logger)
 
+	ctx, cancel := signal.NotifyContext(
+		context.Background(), syscall.SIGINT, syscall.SIGABRT,
+	)
+	defer cancel()
+
 	if *useHealthCheck{
 		healthCheck()
 		os.Exit(0)
 	}
 
-	conf, err := config.LoadConfig()
+	c, err := config.LoadConfig()
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %s", err.Error())
 	}
@@ -104,12 +130,13 @@ func main() {
 		roots := flag.Args()
 		if len(roots) <= 0 {
 			/* Look for bookmarks */
-			if conf != nil {
-				roots = conf.BookmarkRoots
+			if c != nil {
+				roots = c.BookmarkRoots
 			}
 		}
 
         out, err := cd.SearchDir(
+			ctx,
             roots,
             uint8(*useWalkerDepth), uint8(*useWalkerWorker),
         )
@@ -154,7 +181,7 @@ func main() {
 	}
 
 	if *useKittyActivateTab {
-		err := mux.ActivateTab(&mux.Kitty{})
+		err := mux.ActivateTab(ctx, &mux.Kitty{})
 		if err != nil {
 			slog.Error(err.Error())
 			os.Exit(1)
@@ -162,7 +189,7 @@ func main() {
 		os.Exit(0)
 	}
     if *useWeztermActivateTab {
-        err := mux.ActivateTab(&mux.Wezterm{})
+        err := mux.ActivateTab(ctx, &mux.Wezterm{})
         if err != nil {
 			slog.Error(err.Error())
             os.Exit(1)
@@ -172,7 +199,8 @@ func main() {
 
 	if *useWeztermNewTab {
 		err := mux.NewTab(
-			conf.BookmarkRoots,
+			ctx,
+			c.BookmarkRoots,
 			uint8(*useWalkerDepth), uint8(*useWalkerWorker),
 			&mux.Wezterm{},
 		)
@@ -183,16 +211,30 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *useKittyStartSession {
-		if err := kitty.StartSession(conf); err != nil {
+	if *useKittyNewSessions {
+		if err := mux.NewSessions(c, &mux.Kitty{}); err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	if *useWeztermNewSessions {
+		if err := mux.NewSessions(c, &mux.Wezterm{}); err != nil {
 			slog.Error(err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
 
-	if *useKittyStoreSession {
-		if err := kitty.StoreSession(conf); err != nil {
+	if *useKittyCreateSessionProfile {
+		if err := mux.CreateSessionProfile(c, &mux.Kitty{}); err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	if *useWeztermCreateSessionProfile {
+		if err := mux.CreateSessionProfile(c, &mux.Wezterm{}); err != nil {
 			slog.Error(err.Error())
 			os.Exit(1)
 		}
