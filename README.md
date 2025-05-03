@@ -33,19 +33,15 @@ it will collect all directories it finds, and pipe it to FzF.
     - `--walker-depth` specifies the depth of a walk
     - `--walker-worker` specified the maximum go routine
 
-### `--kitty_fzf_tab`
+### `--[kitty|wezterm]_activate_tab`
 
 - Fuzzy find a kitty tab in the current active window
 
-### `--kitty_start_session`
+### `--[kitty|wezterm]_new_sessions`
 
 - Select a session profile stored in `$HOME/.shutil.json` and start a set of 
 new tabs using this profile in the active window.
 
-### `--kitty_store_session`
+### `--[kitty|wezterm]_create_session_profile`
 
 - Store the tabs information in the active window as a session profile.
-
-### `--wezterm_fzf_tab`
-
-- Fuzzy find a wezterm tab
