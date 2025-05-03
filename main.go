@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Dekr0/shutil/cd"
+	"github.com/Dekr0/shutil/picker"
 	"github.com/Dekr0/shutil/config"
 	"github.com/Dekr0/shutil/mux"
 	"github.com/Dekr0/shutil/pkg"
@@ -17,6 +17,12 @@ import (
 )
 
 func main() {
+	useFzFExec := flag.Bool(
+		"cofi",
+		false,
+		"Fuzzy find executable from PATH",
+	)
+
     useWalker := flag.Bool(
         "walker",
         false,
@@ -39,12 +45,6 @@ func main() {
         "Replace white space for an array of files or directories (including " +
         "descendant) with underscore",
     )
-
-	useFzFExec := flag.Bool(
-		"exec",
-		false,
-		"Fuzzy find executable from PATH",
-	)
 
 	useKittyActivateTab := flag.Bool(
 		"kitty_activate_tab",
@@ -92,7 +92,8 @@ func main() {
 	useHealthCheck := flag.Bool(
 		"health_check",
 		false,
-		"Check necessary applications required to run shutil, and check the correctness of config",
+		"Check necessary applications required to run shutil, and check the " + 
+		"correctness of config",
 	)
 
 	usePkgAdd := flag.String("pkg_add", "", "Package to be added from the profile")
@@ -126,6 +127,16 @@ func main() {
 		fmt.Printf("Failed to load configuration: %s", err.Error())
 	}
 
+	if *useFzFExec {
+		out, err := picker.SearchExecutable(ctx)
+		if err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		os.Stdout.Write(out)
+		os.Exit(0)
+	}
+
     if *useWalker {
 		roots := flag.Args()
 		if len(roots) <= 0 {
@@ -135,7 +146,7 @@ func main() {
 			}
 		}
 
-        out, err := cd.SearchDir(
+        out, err := picker.SearchDir(
 			ctx,
             roots,
             uint8(*useWalkerDepth), uint8(*useWalkerWorker),
