@@ -20,6 +20,16 @@ are written in two different scripting languages (bash and Power Shell), and
 from investing extra time to learn features specific to a scripting language (
 mainly Power Shell).
 
+## Installation
+
+- Make sure `FzF` is installed.
+- Clone this project, and use the build script
+```sh
+git clone https://github.com/Dekr0/shutil
+python shutil/build.py
+```
+- Include `$GOPATH/bin` (Usually, it's under `$HOME/go/bin`) in `$PATH`.
+
 ## Usage
 
 ### `--walker`
@@ -30,12 +40,17 @@ it will collect all directories it finds, and pipe it to FzF.
 - If no directory is provided, it will use the bookmark directory stored in
 `$HOME/.shutil.json`.
 - There are two additional parameters you can use,
-    - `--walker-depth` specifies the depth of a walk
-    - `--walker-worker` specified the maximum go routine
+    - `--walker_depth` specifies the depth of a walk
+    - `--walker_worker` specified the maximum go routine
 
 ### `--[kitty|wezterm]_activate_tab`
 
 - Fuzzy find a kitty tab in the current active window
+
+### `--wezterm_new_tab`
+
+- This option do pretty much the same thing as `walker` but it will start a new 
+tab in `wezterm` using the selected path.
 
 ### `--[kitty|wezterm]_new_sessions`
 
@@ -45,3 +60,72 @@ new tabs using this profile in the active window.
 ### `--[kitty|wezterm]_create_session_profile`
 
 - Store the tabs information in the active window as a session profile.
+
+## Example 
+
+### Kitty Configuration
+
+```conf
+map ctrl+alt+f launch --type overlay shutil --kitty_activate_tab
+map ctrl+alt+n launch --type overlay sh -c "kitten @ launch --type=tab --cwd $(shutil --walker --walker_depth 3 --walker_worker 0)"
+map ctrl+shift+r launch --type overlay shutil --kitty_new_sessions
+map ctrl+shift+s launch --type overlay shutil --kitty_create_session_profile
+```
+
+### Wezterm Configuration
+
+```lua
+config.keys = {
+    {
+        key = 'f',
+        mods = 'CTRL|ALT',
+        action = wezterm.action.SpawnCommandInNewTab {
+            args = { 'shutil', '--wezterm_activate_tab' },
+        }
+    },
+    {
+        key = 'n',
+        mods = 'CTRL|ALT',
+        action = wezterm.action.SpawnCommandInNewTab {
+            args = { 'shutil', '--wezterm_new_tab' }
+        }
+    },
+    {
+        key = 's',
+        mods = 'CTRL|ALT',
+        action = wezterm.action.SpawnCommandInNewTab {
+            args = { 'shutil', '--wezterm_new_sessions' }
+        }
+    },
+    {
+        key = 's',
+        mods = 'CTRL|ALT|SHIFT',
+        action = wezterm.action.SpawnCommandInNewTab {
+            args = { 'shutil', '--wezterm_create_session_profile' }
+        }
+    },
+}
+```
+
+### ZSH (Alias and Binding)
+
+```sh
+# Find directory (general cases)
+fd() {
+    local depth="${1:-2}"
+    local worker="${2:-0}"
+    local dir="${3:-.}"
+    cd $(shutil --walker -walker_depth $depth --walker_worker $worker $dir)
+}
+
+# Find directory (using bookmark)
+fdb() {
+    cd $(shutil --walker --walker_depth 3 --walker_worker 0)
+    zle reset-prompt
+}
+
+zle     -N            fdb
+bindkey -M emacs '^J' fdb 
+bindkey -M vicmd '^J' fdb 
+bindkey -M viins '^J' fdb 
+```
