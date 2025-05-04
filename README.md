@@ -26,7 +26,7 @@ mainly Power Shell).
 - Clone this project, and use the build script
 ```sh
 git clone https://github.com/Dekr0/shutil && cd shutil
-python shutil/build.py
+python build.py
 ```
 - Include `$GOPATH/bin` (Usually, it's under `$HOME/go/bin`) in `$PATH`.
 
