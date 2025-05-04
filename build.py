@@ -3,9 +3,24 @@ import os
 import platform
 import subprocess
 
+home = os.environ["HOME"]
+
+go_path = os.environ["GOPATH"]
+if not os.path.exists(go_path):
+    go_path = os.path.join(home, "go")
+    os.mkdir(go_path)
+
+go_bin = os.path.join(go_path, "bin")
+if not os.path.exists(go_bin):
+    os.mkdir(go_bin)
+
 subprocess.run(["go", "build"])
 
+bin = ""
 if "Linux" in platform.platform():
-    shutil.move("shutil", os.path.join(os.environ["GOPATH"], "bin/shutil"))
+    bin = "shutil"
 else:
-    shutil.move("shutil.exe", os.path.join(os.environ["GOPATH"], "bin/shutil.exe"))
+    bin = "shutil.exe"
+
+dest = os.path.join(go_bin, bin)
+shutil.move(bin, dest)
