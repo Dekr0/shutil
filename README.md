@@ -25,7 +25,7 @@ mainly Power Shell).
 - Make sure `FzF` is installed.
 - Clone this project, and use the build script
 ```sh
-git clone https://github.com/Dekr0/shutil
+git clone https://github.com/Dekr0/shutil && cd shutil
 python shutil/build.py
 ```
 - Include `$GOPATH/bin` (Usually, it's under `$HOME/go/bin`) in `$PATH`.
