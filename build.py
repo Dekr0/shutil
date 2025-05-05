@@ -3,16 +3,31 @@ import os
 import platform
 import subprocess
 
-home = os.environ["HOME"]
+# Prefer pathlib? Slightly slower, in exchange for abstraction.
+from pathlib import Path
 
-go_path = os.environ["GOPATH"]
-if not os.path.exists(go_path):
-    go_path = os.path.join(home, "go")
-    os.mkdir(go_path)
+home_path = Path.home()
 
-go_bin = os.path.join(go_path, "bin")
-if not os.path.exists(go_bin):
-    os.mkdir(go_bin)
+# os.environ['suchanenv'] WILL raise an exception if it does not exist
+# os.environ.get('suchanenv') DOES NOT raise an exception if it does not exist
+
+# Recall and consider the differences between `go env` and `env`
+# At installation, a default GOPATH is set in `go env` but not `env`
+
+# Assume go is installed, and some environment variable exists
+bin_dir = os.environ.get("GOBIN")
+go_dir = os.environ.get("GOPATH")
+if bin_dir:
+    install_dir = Path(bin_dir)
+elif go_dir:
+    install_dir = Path(go_dir) / "bin"
+    install_dir.mkdir(exist_ok=True)
+else:
+    install_dir = home_path / "go" / "bin"
+    # https://docs.python.org/3/library/pathlib.html#pathlib.Path.mkdir
+    # Creates the directories /go/bin iff does not already exist
+    install_dir.mkdir(parents=True, exist_ok=True)
+
 
 subprocess.run(["go", "build"])
 
@@ -22,5 +37,5 @@ if "Linux" in platform.platform():
 else:
     bin = "shutil.exe"
 
-dest = os.path.join(go_bin, bin)
-shutil.move(bin, dest)
+install_dest = install_dir / bin
+shutil.move(bin, install_dest)
